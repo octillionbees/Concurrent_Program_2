@@ -72,5 +72,8 @@ int main(int argc, char* argv[]) {
     free(y);
     free(x);
     free(a);
+
+
+
     return 0;
 }
