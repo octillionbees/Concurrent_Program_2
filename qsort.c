@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <string.h>
 
@@ -27,17 +28,107 @@ int main(int argc, char* argv[]) {
     int k = atoi(argv[3]);
     int key = atoi(argv[4]);
 
-    //attach shared memory
-    int shm_id = shmget(key, sizeof(int) * k, 0666); //shm only created by main
-    int* a = (int*) shmat(shm_id, NULL, 0); //attach shared memory to pointer a
-    //partitioning algorithm
+    if (left < right) {
+        //attach shared memory
+        int shm_id = shmget(key, sizeof(int) * k, 0666); //shm only created by main
+        int* a = (int*) shmat(shm_id, NULL, 0); //attach shared memory to pointer a
 
-    partition(a, left, right);
+        sprintf(buf, "   ### Q-PROC(%d): entering with a[%d...%d]\n       ", pid, left, right);
+        write(1, buf, strlen(buf));
 
-    //wait
+        for (int i = left; i <= right; i++) {
+            sprintf(buf, "%d ", a[i]);
+            write(1, buf, strlen(buf));
+        }
+        sprintf(buf, "\n");
+        write(1, buf, strlen(buf));
 
-    //detach shared memory (don't remove, main will remove)
+        //partitioning and sorting algorithm
 
+        int m = partition(a, left, right);
+
+        sprintf(buf, "   ### Q-PROC(%d): pivot element is a[%d] = %d\n", pid, m, a[m]);
+        write(1, buf, strlen(buf));
+
+        //fork 2 child processes, execvp to recursively run program
+        pid_t pidChild1 = fork();
+        if (pidChild1 < 0) {
+            sprintf(buf, "   ### Q-PROC(%d): ERROR: Process fork failed!\n", pid);
+            write(1, buf, strlen(buf));
+        } else if (pidChild1 == 0) {
+            //child logic
+            //construct execvp arguments
+            char prog[] = {"qsort"};
+            char l[10];
+            char r[10];
+            char size[10];
+            char shmKey[10];
+
+            sprintf(l, "%d", left);
+            sprintf(r, "%d", m-1);
+            sprintf(size, "%d", k);
+            sprintf(shmKey, "%d", key);
+
+            char* args[] = {prog, l, r, size, shmKey};
+
+            if (execvp(prog, args) < 0) {
+                sprintf(buf, "   ### Q-PROC(%d): execvp() failed!\n");
+                write(1, buf, strlen(buf));
+                exit(1);
+            }
+
+        } else {
+            //parent logic
+            pid_t pidChild2 = fork();
+            if (pidChild2 < 0) {
+                sprintf(buf, "   ### Q-PROC(%d): ERROR: Process fork failed!\n", pid);
+                write(1, buf, strlen(buf));
+            } else if (pidChild2 == 0) {
+                //child logic
+                char prog[] = {"qsort"};
+                char l[10];
+                char r[10];
+                char size[10];
+                char shmKey[10];
+
+                sprintf(l, "%d", left);
+                sprintf(r, "%d", m-1);
+                sprintf(size, "%d", k);
+                sprintf(shmKey, "%d", key);
+
+                char* args[] = {prog, l, r, size, shmKey};
+
+                if (execvp(prog, args) < 0) {
+                    sprintf(buf, "   ### Q-PROC(%d): execvp() failed!\n");
+                    write(1, buf, strlen(buf));
+                    exit(1);
+                }
+            } else {
+                //final parent logic
+                //wait for both processes to finish;
+                int* wStatus;
+
+                waitpid(pidChild1, wStatus, 0);
+                waitpid(pidChild2, wStatus, 0);
+
+            }
+        }
+        sprintf(buf, "   ### Q-PROC(%d): section a[%d...%d] sorted\n", pid, left, right);
+        write(1, buf, strlen(buf));
+
+        for (int i = left; i <= right; i++) {
+            sprintf(buf, "%d ", a[i]);
+            write(1, buf, strlen(buf));
+        }
+        sprintf(buf, "\n");
+        write(1, buf, strlen(buf));
+
+        //detach shared memory (don't remove, main will remove)
+        shmdt(a);
+
+        sprintf(buf,"   ### Q-PROC(%d): exits\n", pid);
+        write(1, buf, strlen(buf));
+    }
 }
 
 int partition(int* a, int l, int r){
