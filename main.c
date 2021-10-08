@@ -7,6 +7,8 @@
 #include <string.h>
 
 int main(int argc, char* argv[]) {
+    char buf[100];
+
     //Test for correct arguments (0)
     if (argc > 1) {
         printf("ERROR: Too many arguments\n");
@@ -19,12 +21,27 @@ int main(int argc, char* argv[]) {
     int n;
 
     scanf("%d", &k);
-    int* a = malloc(sizeof(int) * k); //create an array of k integers
+
+    //create an array of k integers in shared memory
+    key_t qKey = ftok("./", 'j');
+
+    sprintf(buf, "*** MAIN: shared memory key = %d\n", qKey);
+    write(1, buf, strlen(buf));
+
+    int q_shm_id = shmget(qKey, sizeof(int) * k, IPC_CREAT | 0666);
+
+    sprintf(buf, "*** MAIN: shared memory created\n");
+    write(1, buf, strlen(buf));
+
+    int *a = (int*) shmat(q_shm_id, NULL, 0);
+
+    sprintf(buf, "*** MAIN: shared memory attached and is ready to use\n");
+    write(1, buf, strlen(buf));
+
     for (int i = 0; i < k; i++) {
         scanf("%d", &a[i]);
     }
 
-    char buf[100];
     sprintf(buf, "Input array for qsort has %d elements:\n    ", k);
     write(1, buf, strlen(buf));
 
@@ -71,9 +88,21 @@ int main(int argc, char* argv[]) {
 
     free(y);
     free(x);
-    free(a);
 
+    //detach and remove shared memory
+    shmdt(a);
 
+    sprintf(buf, "*** MAIN: shared memory successfully detached\n");
+    write(1, buf, strlen(buf));
+
+    if (shmctl(q_shm_id, IPC_RMID, NULL) == -1) {
+        sprintf(buf, "*** MAIN: shared memory unable to be removed!\n");
+        write(1, buf, strlen(buf));
+        exit(1);
+    }
+
+    sprintf(buf, "*** MAIN: shared memory successfully removed\n");
+    write(1, buf, strlen(buf));
 
     return 0;
 }
