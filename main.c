@@ -3,8 +3,10 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 
 int main(int argc, char* argv[]) {
     char buf[100];
@@ -19,6 +21,7 @@ int main(int argc, char* argv[]) {
     int k;
     int m;
     int n;
+    int* status;
 
     scanf("%d", &k);
 
@@ -42,14 +45,16 @@ int main(int argc, char* argv[]) {
         scanf("%d", &a[i]);
     }
 
-    sprintf(buf, "Input array for qsort has %d elements:\n    ", k);
+    sprintf(buf, "Input array for qsort has %d elements:\n", k);
     write(1, buf, strlen(buf));
 
+    sprintf(buf, "    ");
+    int j = strlen(buf);
     for (int i= 0; i < k; i++) {
-        sprintf(buf, "%d ", a[i]);
-        write(1, buf, strlen(buf));
+        sprintf(&buf[j], "%d ", a[i]);
+        j = strlen(buf);
     }
-    sprintf(buf, "\n");
+    sprintf(&buf[j], "\n");
     write(1, buf, strlen(buf));
 
     scanf("%d", &m);
@@ -58,15 +63,17 @@ int main(int argc, char* argv[]) {
         scanf("%d", &x[i]);
     }
 
-    sprintf(buf, "Input array x[] for merge has %d elements:\n    ", m);
+    sprintf(buf, "Input array x[] for merge has %d elements:\n", m);
     write(1, buf, strlen(buf));
 
+    sprintf(buf, "    ");
+    j = strlen(buf);
     for (int i = 0; i < m; i++) {
-        sprintf(buf,"%d ", x[i]);
-        write(1, buf, strlen(buf));
+        sprintf(&buf[j],"%d ", x[i]);
+        j = strlen(buf);
     }
 
-    sprintf(buf, "\n");
+    sprintf(&buf[j], "\n");
     write(1, buf, strlen(buf));
 
     scanf("%d", &n);
@@ -75,20 +82,50 @@ int main(int argc, char* argv[]) {
         scanf("%d", &y[i]);
     }
 
-    sprintf(buf, "Input array y[] for merge has %d elements:\n    ", n);
+    sprintf(buf, "Input array y[] for merge has %d elements:\n", n);
     write(1, buf, strlen(buf));
 
+    sprintf(buf, "    ");
+    j = strlen(buf);
     for (int i = 0; i < n; i++) {
-        sprintf(buf, "%d ", y[i]);
-        write(1, buf, strlen(buf));
+        sprintf(&buf[j], "%d ", y[i]);
+        j = strlen(buf);
     }
 
-    sprintf(buf, "\n");
+    sprintf(&buf[j], "\n");
     write(1, buf, strlen(buf));
+
+    //execvp qsort
+    pid_t qChild = fork();
+    if (qChild < 0) {
+        perror("fork failed!\n");
+        exit(1);
+    } else if (qChild == 0) {
+        //Child Logic
+        char prog[] = {"./qsort"};
+        char l[10];
+        char r[10];
+        char size[10];
+        char shmKey[10];
+
+        sprintf(l, "%d", 0);
+        sprintf(r, "%d", k - 1);
+        sprintf(size, "%d", k);
+        sprintf(shmKey, "%d", qKey);
+
+        char* args[] = {prog, l, r, size, shmKey, '\0'};
+
+        if (execvp(prog, args) < 0) {
+            perror("*** MAIN: execvp() failed! ");
+            exit(1);
+        }
+    }
+
 
     free(y);
     free(x);
 
+    waitpid(qChild, status, 0);
     //detach and remove shared memory
     shmdt(a);
 
