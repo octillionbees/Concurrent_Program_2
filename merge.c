@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <string.h>
 
+int binarySearch(int* arr, int l, int r, int x);
 
 int main(int argc, char* argv[]) {
     //arguments:
@@ -55,14 +56,59 @@ int main(int argc, char* argv[]) {
             pid_t childPid = getpid();
 
             int ind = i;
-            if (ind > (m - 1)) ind -= m; //assign ind to be used for n
+            if (ind > (m - 1)) {
+                //logic for y[ind]
+                ind -= m;
+                int val = y[ind];
+                sprintf(buf, "      $$$ M-PROC(%d): handling y[%d] = %d\n", childPid, ind, val);
+                write(1, buf, strlen(buf));
 
-            //check edge cases first
+                //edge cases
+                int mergeInd;
+                if (val < x[0]) {
+                    sprintf(buf, "      $$$ M-PROC(%d): y[%d] = %d is found to be smaller than x[0] = %d\n", childPid, ind, val, x[0]);
+                    write(1, buf, strlen(buf));
+                    mergeInd = ind;
+                } else if (val > x[m-1]) {
+                    mergeInd = ind + m;
+                } else { //x[0] < y[ind] < x[m-1]
+                    //modified binary search
+                    int k = binarySearch(x, 0, m - 1, val);
+                    if (k == -1) {
+                        sprintf(buf, "      $$$ M-PROC(%d): ERROR: Binary Search Failed!\n");
+                        write(1, buf, strlen(buf));
+                        exit(1);
+                    }
+                    mergeInd = ind + k;
+                }
 
-
+                sprintf(buf, "      $$$ M-PROC(%d): about to write y[%d] = %d into position %d of the output array\n", childPid, ind, val, mergeInd);
+                write(1, buf, strlen(buf));
+                mergeArr[mergeInd] = val;
+            } else { //ind < m - 1
+                //logic for x[ind]
+                int val = x[ind];
+                //edge cases
+                if (val < y[0]) {
+                    mergeArr[ind] = val;
+                } else if (val > y[n - 1]) {
+                    mergeArr[ind + n] = val;
+                } else { //y[0] < x[ind] < y[n - 1]
+                    int k = binarySearch(y, 0, n - 1, val);
+                    if (k == -1) {
+                        sprintf(buf, "      $$$ M-PROC(%d): ERROR: Binary Search Failed!\n");
+                        write(1, buf, strlen(buf));
+                        exit(1);
+                    }
+                    mergeArr[ind + k] = val;
+                }
+            }
             //finish child process
             exit(0);
         }
+        //mergeArr is sorted now
+
+
     }
 
     //wait all children exit
@@ -75,4 +121,20 @@ int main(int argc, char* argv[]) {
     shmdt(x);
     shmdt(y);
     shmdt(mergeArr);
+}
+
+int binarySearch(int* arr, int l, int r, int x) {
+    if (r >= l) {
+        int mid = l + (r - l) / 2;
+        if (arr[mid] > x && arr[mid - 1] < x) {
+            return mid;
+        }
+
+        if (arr[mid - 1] > x) {
+            return binarySearch(arr, l, mid - 1, x);
+        } else { //arr[mid] < x
+            return binarySearch(arr, mid + 1, r, x);
+        }
+    }
+    return -1;
 }

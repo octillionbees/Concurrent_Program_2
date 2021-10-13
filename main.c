@@ -25,6 +25,9 @@ int main(int argc, char* argv[]) {
 
     scanf("%d", &k);
 
+    //if I had more time, I could do the entire program with only 1 shared memory segment, but I didn't realize that at
+    //the beginning, so now we're using 4 segments.
+
     //create an array of k integers in shared memory
     key_t qKey = ftok("./", 'j');
 
