@@ -32,9 +32,9 @@ int main(int argc, char* argv[]) {
 
     int xKey = atoi(argv[1]);
     int yKey = atoi(argv[2]);
-    int mergeKey = atoi(argv[3]);
-    int m = atoi(argv[4]);
-    int n = atoi(argv[5]);
+    int m = atoi(argv[3]);
+    int n = atoi(argv[4]);
+    int mergeKey = atoi(argv[5]);
 
     //attach shared memory segments
     int x_shm_id = shmget(xKey, sizeof(int) * m, 0666);
@@ -47,9 +47,11 @@ int main(int argc, char* argv[]) {
     //create m + n child processes
     pid_t childPid;
     for (int i = 0; i < (m + n); i++) {
-        forkPid = fork();
-        if (forkPid < 0) {
-            perror("      $$$ M-PROC: fork() process failed");
+        pid_t forkPid = fork();
+        if (forkPid == -1) {
+            char errorMsg[100];
+            sprintf(errorMsg, "      $$$ M-PROC(%d): fork(), i = %d, m = %d, n = %d process failed", pid, i, m , n);
+            perror(errorMsg);
             exit(1);
         } else if (forkPid == 0) {
             //child logic
@@ -70,6 +72,8 @@ int main(int argc, char* argv[]) {
                     write(1, buf, strlen(buf));
                     mergeInd = ind;
                 } else if (val > x[m-1]) {
+                    sprintf(buf, "      $$$ M-PROC (%d): y[%d] = %d is found to be larger than x[%d] = %d\n", childPid, ind, val, m-1, x[m-1]);
+                    write(1, buf, strlen(buf));
                     mergeInd = ind + m;
                 } else { //x[0] < y[ind] < x[m-1]
                     //modified binary search
@@ -79,6 +83,8 @@ int main(int argc, char* argv[]) {
                         write(1, buf, strlen(buf));
                         exit(1);
                     }
+                    sprintf(buf, "      $$$ M-PROC(%d): y[%d] = %d is found between x[%d] = %d and x[%d] = %d\n", childPid, ind, val, k-1, x[k-1], k, x[k]);
+                    write(1, buf, strlen(buf));
                     mergeInd = ind + k;
                 }
 
@@ -88,11 +94,20 @@ int main(int argc, char* argv[]) {
             } else { //ind < m - 1
                 //logic for x[ind]
                 int val = x[ind];
+
+                sprintf(buf, "      $$$ M-PROC(%d): handling x[%d] = %d\n", childPid, ind, val);
+                write(1, buf, strlen(buf));
+
                 //edge cases
+                int mergeInd;
                 if (val < y[0]) {
-                    mergeArr[ind] = val;
+                    sprintf(buf, "      $$$ M-PROC(%d): x[%d] = %d is found to be smaller than y[0] = %d\n", childPid, ind, val, y[0]);
+                    write(1, buf, strlen(buf));
+                    mergeInd = ind;
                 } else if (val > y[n - 1]) {
-                    mergeArr[ind + n] = val;
+                    sprintf(buf, "      $$$ M-PROC(%d): x[%d] = %d is found to be larger than y[%d] = %d\n", childPid, ind, val, n - 1, y[n-1]);
+                    write(1, buf, strlen(buf));
+                    mergeInd = ind + n;
                 } else { //y[0] < x[ind] < y[n - 1]
                     int k = binarySearch(y, 0, n - 1, val);
                     if (k == -1) {
@@ -100,14 +115,19 @@ int main(int argc, char* argv[]) {
                         write(1, buf, strlen(buf));
                         exit(1);
                     }
-                    mergeArr[ind + k] = val;
+                    sprintf(buf, "      $$$ M-PROC(%d): x[%d] = %d is found between y[%d] = %d and y[%d] = %d\n", childPid, ind, val, k - 1, y[k-1], k, y[k]);
+                    write(1, buf, strlen(buf));
+                    mergeInd = ind + k;
                 }
+
+                sprintf(buf, "      $$$ M-PROC(%d): about to write x[%d] = %d into position %d of the output array\n", childPid, ind, val, mergeInd);
+                write(1, buf, strlen(buf));
+                mergeArr[mergeInd] = val;
             }
             //finish child process
             exit(0);
         }
         //mergeArr is sorted now
-
 
     }
 

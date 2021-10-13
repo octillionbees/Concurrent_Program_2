@@ -48,10 +48,9 @@ int main(int argc, char* argv[]) {
         scanf("%d", &a[i]);
     }
 
-    sprintf(buf, "Input array for qsort has %d elements:\n", k);
+    sprintf(buf, "Input array for qsort has %d elements:\n    ", k);
 
     int j = strlen(buf);
-    sprintf(&buf[j], "    ");
     for (int i= 0; i < k; i++) {
         sprintf(&buf[j], "%d ", a[i]);
         j = strlen(buf);
@@ -76,10 +75,9 @@ int main(int argc, char* argv[]) {
         scanf("%d", &x[i]);
     }
 
-    sprintf(buf, "Input array x[] for merge has %d elements:\n", m);
+    sprintf(buf, "Input array x[] for merge has %d elements:\n    ", m);
 
     j = strlen(buf);
-    sprintf(&buf[j], "    ");
     for (int i = 0; i < m; i++) {
         sprintf(&buf[j],"%d ", x[i]);
         j = strlen(buf);
@@ -105,10 +103,9 @@ int main(int argc, char* argv[]) {
         scanf("%d", &y[i]);
     }
 
-    sprintf(buf, "Input array y[] for merge has %d elements:\n", n);
+    sprintf(buf, "Input array y[] for merge has %d elements:\n    ", n);
 
     j = strlen(buf);
-    sprintf(&buf[j], "    ");
     for (int i = 0; i < n; i++) {
         sprintf(&buf[j], "%d ", y[i]);
         j = strlen(buf);
@@ -124,8 +121,8 @@ int main(int argc, char* argv[]) {
     int merge_shm_id = shmget(mergeKey, sizeof(int) * (n + m), IPC_CREAT | 0666);
     sprintf(buf, "*** MAIN: third merge shared memory created\n");
     write(1, buf, strlen(buf));
-
-    //Don't attach, because nothing needs to be loaded into the memory segment by main.
+    int *mergeOut = (int*) shmat(merge_shm_id, NULL, 0);
+    sprintf(buf, "*** MAIN: third merge shared memory attached and is ready to use\n");
 
     //execvp qsort
 
@@ -138,10 +135,10 @@ int main(int argc, char* argv[]) {
     } else if (qChild == 0) {
         //Child Logic
         char prog[] = {"./qsort"};
-        char l[10];
-        char r[10];
-        char size[10];
-        char shmKey[10];
+        char l[11];
+        char r[11];
+        char size[11];
+        char shmKey[11];
 
         sprintf(l, "%d", 0);
         sprintf(r, "%d", k - 1);
@@ -156,11 +153,52 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    //execvp merge
+
+    sprintf(buf, "*** MAIN: about to spawn the process for merge\n");
+    write(1, buf, strlen(buf));
+    pid_t mChild = fork();
+    if (mChild < 0) {
+        perror("*** MAIN: fork failed!\n");
+        exit(1);
+    } else if (mChild == 0) {
+        //Child Logic
+        char prog[] = {"./merge"};
+        char xKey[11];
+        char yKey[11];
+        char xSize[11];
+        char ySize[11];
+        char shareKey[11];
+
+        sprintf(xKey, "%d", mKey);
+        sprintf(yKey, "%d", nKey);
+        sprintf(xSize, "%d", m);
+        sprintf(ySize, "%d", n);
+        sprintf(shareKey, "%d", mergeKey);
+
+        char* args[] = {prog, xKey, yKey, xSize, ySize, shareKey, '\0'};
+
+        if (execvp(prog, args) < 0) {
+            perror("*** MAIN: execvp() failed!");
+            exit(1);
+        }
+    }
+
     waitpid(qChild, status, 0);
     sprintf(buf, "*** MAIN: sorted array by qsort:\n    ");
     j = strlen(buf);
     for (int i = 0; i < k; i++) {
         sprintf(&buf[j], " %d", a[i]);
+        j = strlen(buf);
+    }
+    sprintf(&buf[j], "\n");
+    write(1, buf, strlen(buf));
+
+    waitpid(mChild, status, 0);
+    sprintf(buf, "*** MAIN: merged array:\n    ");
+    j = strlen(buf);
+    for(int i = 0; i < (m + n); i++) {
+        sprintf(&buf[j], " %d", mergeOut[i]);
         j = strlen(buf);
     }
     sprintf(&buf[j], "\n");
@@ -181,6 +219,11 @@ int main(int argc, char* argv[]) {
     shmdt(y);
 
     sprintf(buf, "*** MAIN: second merge shared memory successfully detached\n");
+    write(1, buf, strlen(buf));
+
+    shmdt(mergeOut);
+
+    sprintf(buf, "*** MAIN: third merge shared memory successfully detached\n");
     write(1, buf, strlen(buf));
 
     if (shmctl(q_shm_id, IPC_RMID, NULL) == -1) {

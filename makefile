@@ -10,5 +10,6 @@ merge:
 all:
 	gcc main.c -o main
 	gcc qsort.c -o qsort
+	gcc merge.c -o merge
 clean:
 	-rm -f ${OBJFILES} main qsort merge
