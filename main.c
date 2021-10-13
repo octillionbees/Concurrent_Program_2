@@ -7,7 +7,29 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+/* ----------------------------------------------------------- */
+/* NAME : Jade Wang                        User ID: jbwang     */
+/* DUE DATE : 10/13/2021                                       */
+/* PROGRAM ASSIGNMENT 2                                        */
+/* FILE NAME : main.c                                          */
+/* PROGRAM PURPOSE :                                           */
+/*    This program takes in 3 arrays as input, then sorts the  */
+/*    first array with an execvp call to a separate program,   */
+/*    and merges the other two with an execvp call to a        */
+/*    different program.                                       */
+/* ----------------------------------------------------------- */
 
+/* ----------------------------------------------------------- */
+/* FUNCTION  main :                                            */
+/*     the purpose of this function                            */
+/* PARAMETER USAGE :                                           */
+/*    argc : number of command line args passed in             */
+/*    argv : array of command line args passed in              */
+/* for this program, no command line args should be passed in. */
+/* FUNCTION CALLED :                                           */
+/*    while execvp system calls are used to run other programs,*/
+/*    no user-created functions are called from within main.   */
+/* ----------------------------------------------------------- */
 int main(int argc, char* argv[]) {
     char buf[100];
 

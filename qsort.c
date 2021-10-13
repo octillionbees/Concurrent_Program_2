@@ -1,6 +1,3 @@
-//
-// Created by Jade on 06-Oct-21.
-//
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -9,10 +6,30 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <string.h>
+/* ----------------------------------------------------------- */
+/* NAME : Jade Wang                          User ID: jbwang   */
+/* DUE DATE : 10/13/2021                                       */
+/* PROGRAM ASSIGNMENT 2                                        */
+/* FILE NAME : qsort.c                                         */
+/* PROGRAM PURPOSE :                                           */
+/*    given an input array, concurrently perform a quicksort   */
+/*    algorithm on the given array.                            */
+/* ----------------------------------------------------------- */
+
 
 int partition(int* a, int l, int r);
 void swap(int* a, int i, int j);
 
+/* ----------------------------------------------------------- */
+/* FUNCTION  main :                                            */
+/*    given an input array, concurrently perform a quicksort   */
+/*    algorithm on the given array.                            */
+/* PARAMETER USAGE :                                           */
+/*    int argc : number of command line arguments              */
+/*    char* argv[] : array of command line arguments           */
+/* FUNCTION CALLED :                                           */
+/*    partition(), execvp() to call qsort                      */
+/* ----------------------------------------------------------- */
 int main(int argc, char* argv[]) {
     char buf[100];
     pid_t pid = getpid();
@@ -128,6 +145,17 @@ int main(int argc, char* argv[]) {
     write(1, buf, strlen(buf));
 }
 
+/* ----------------------------------------------------------- */
+/* FUNCTION  partition :                                       */
+/*    use Lumoto's Partitioning Algorithm to partition an array*/
+/*    for quicksort.                                           */
+/* PARAMETER USAGE :                                           */
+/*    int* a : pointer to array to partition                   */
+/*    int l : index of left-most element in array              */
+/*    int r : index of right-most element in array             */
+/* FUNCTION CALLED :                                           */
+/*    swap()                                                   */
+/* ----------------------------------------------------------- */
 int partition(int* a, int l, int r){
     int p = a[l];
     int s = l;
@@ -143,6 +171,16 @@ int partition(int* a, int l, int r){
     return s;
 }
 
+/* ----------------------------------------------------------- */
+/* FUNCTION  swap :                                            */
+/*     Swap two elements in an array                           */
+/* PARAMETER USAGE :                                           */
+/*    int* a : pointer to array                                */
+/*    int i : first element to swap                            */
+/*    int j : second element to swap                           */
+/* FUNCTION CALLED :                                           */
+/*    no functions are called by this one.                     */
+/* ----------------------------------------------------------- */
 void swap(int* a, int i, int j) {
     int tmp = a[i];
     a[i] = a[j];

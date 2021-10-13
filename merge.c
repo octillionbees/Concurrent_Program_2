@@ -1,6 +1,3 @@
-//
-// Created by Jade on 11-Oct-21.
-//
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -10,8 +7,35 @@
 #include <unistd.h>
 #include <string.h>
 
+/* ----------------------------------------------------------- */
+/* NAME : Jade Wang                         User ID: jbwang    */
+/* DUE DATE : 10/13/2021                                       */
+/* PROGRAM ASSIGNMENT 2                                        */
+/* FILE NAME : merge.c                                         */
+/* PROGRAM PURPOSE :                                           */
+/*    Will be called by main.c in an execvp system call with 5 */
+/*    command line arguments. The program merges two arrays in */
+/*    shared memory*/
+/* ----------------------------------------------------------- */
+
 int binarySearch(int* arr, int l, int r, int x);
 
+/* ----------------------------------------------------------- */
+/* FUNCTION  main :                                            */
+/*     Main function, merges two arrays in shared memory into a*/
+/*     third array in shared memory.                           */
+/* PARAMETER USAGE :                                           */
+/*    argc : number of command line arguments passed in        */
+/*    argv : array of command line arguments : {               */
+/*           key for first shared memory array,                */
+/*           key for second shared memory array,               */
+/*           size of first shared memory array in elements     */
+/*           size of second shared memory array in elements    */
+/*           key for third shared memory array                 */
+/*           }                                                 */
+/* FUNCTION CALLED :                                           */
+/*    binarySearch()                                           */
+/* ----------------------------------------------------------- */
 int main(int argc, char* argv[]) {
     //arguments:
     //key for x
@@ -143,6 +167,19 @@ int main(int argc, char* argv[]) {
     shmdt(mergeArr);
 }
 
+/* ----------------------------------------------------------- */
+/* FUNCTION  binarySearch :                                    */
+/*     calculates the point in a sorted array where a given    */
+/*     value comes BEFORE using a modified binary search       */
+/*     algorithm.                                              */
+/* PARAMETER USAGE :                                           */
+/*    int* arr : pointer to sorted array to be searched        */
+/*    int l : index of left-most bound to search from          */
+/*    int r : index of right-most bound to search from         */
+/*    int x : value to conduct search with                     */
+/* FUNCTION CALLED :                                           */
+/*    binarySeach() (recursively)                              */
+/* ----------------------------------------------------------- */
 int binarySearch(int* arr, int l, int r, int x) {
     if (r >= l) {
         int mid = l + (r - l) / 2;
