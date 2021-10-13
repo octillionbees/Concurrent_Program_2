@@ -1,0 +1,171 @@
+Name: Jade Wang
+User ID: jbwang
+Due: 10/13/2021
+
+1. The logic of your program
+This program operates in two different ways to solve each of the presented
+problems.
+MAIN:
+The MAIN program's only job is to create the shared resources necessary for the
+other two programs, fork, and execvp those programs. It creates just one shared
+memory segment for QSORT, and three for MERGE (MERGE could in theory be done
+with just one shared array, but I found it easier to use three arrays). From
+there, the MAIN program attempts to fork() two child processes, assigning one
+to run QSORT and the other to run MERGE with execvp() system calls. From there,
+MAIN waits for both processes to complete, prints the now-sorted arrays that
+they should have assembled in shared memory, and cleans up the shared memory
+segments before exiting.
+QSORT:
+QSORT recursively executes a quick-sort algorithm on the shared memory segment
+that is passed into it. As such, its structure is designed to work regardless
+of the size of the array passed in. It takes from command line arguments the
+left and right index of the array to work on, as well as the shared memory key
+needed to retrieve the segment from shared memory in the first place. From
+there, Lomuto's Partitioning algorithm is used to partition the input array
+between the left and right indices, and the index of the partition is used to
+split the array in two. Each of these two segments are passed into a child
+process that is also running QSORT, thus recursively sorting the algorithm. The
+program will automatically return when the left and right indices being passed
+in create an array that is empty or a single element. Once all subarrays have
+returned, the array is sorted.
+MERGE:
+While MERGE does not run recursively like QSORT, it still creates many child
+processes to execute its algorithm. The arrays passed in to MERGE are assumed
+to already be sorted, and thus only need to be merged together into a single
+shared array. This is done by forking a child process for each element of each
+of the two arrays that are passed in. The child process then compares its given
+element to that of the first and last elements of the opposing array. If it
+either comes before the first element, or after the last element, the algorithm
+places it in the appropriate position of the merged array automatically.
+Otherwise, MERGE will run a binary search algorithm that compares the value of
+the element to select indices in the opposing array, as well as the element
+immediately preceding said indices. Because the elements of both arrays are
+assumed to be distinct, as well as the fact that we have previously covered the
+edge cases of the element being larger or smaller than all elements in the
+array, this binary search algorithm is guaranteed to find two elements in the
+opposing array which the child processes' element is between. From there, the
+element is inserted into the appropriate position in the merged array. Once the
+final element is sorted, MERGE exits.
+
+2. Why does your program work?
+QSORT works because the partition algorithm partially sorts the elements of the
+array that is passed into it, which, as it becomes smaller and smaller with
+each recursive process, will eventually result in trivially sorted arrays
+(arrays with 0 or 1 element). As such, the QSORT algorithm is guaranteed to
+produce a sorted array given that the partitioning algorithm is correct, and
+that no issues with order arise with concurrency. The partitioning algorithm is
+guaranteed to be correct, as it is a tested and peer-reviewed algorithm that,
+while taking quadratic time, is known to work correctly. In terms of problems
+arising from concurrency, the only time a problem with this program would arise
+would occur when a child process somehow began operating on a portion of the
+array before the parent would be able to partition its own section. Given that
+children are created only AFTER the partitioning function has finished and
+returned, this is thus impossible to occur. While a parent may be slow in
+partitioning its portion of the array, it can only create children to work on
+the portion once it has completed.
+The logic of why MERGE works is a little more complicated, as it does not have
+similar limitations to the order of its childrens' operations. Because merge
+creates all of its child processes without any interruptions between them, the
+child processes operate effectively concurrently, all working on the same
+shared resource. However, the logic of where elements are placed in the shared
+array, and how they interact with the two input arrays, prevents something like
+a race condition from occurring. In the algorithm for determining the position
+of a value in the output array, because each element of the array is unique,
+and the final index of the element is based on how it relates to other elements
+from both its own array and the other input array, the index generated must
+thus also be unique. A conflict would occur only if the binary search algorithm
+produced an incorrect result, which will not happen, as binary search is a well
+known and tested algorithm. So even though the child processes operate on the
+shared output array concurrently, they do not change anything from the input
+arrays, and the nature of the problem prevents them from attempting to place
+an element in the same index, thus creating a well-sorted and merged array.
+
+3. Explain the allocation and use of each shared memory segment.
+Shared memory segments are allocated using a key that is meant to specify which
+segment in shared memory is being used. This key is generated using the ftok()
+function, which takes a filepath and a character and converts it into a key.
+Because this file-path is environment-dependant, the key may be different
+based on where the program is run. However, that key that is created will
+always correspond to the same shared memory segment between processes running
+in the same environment. From there, the shared memory that is allocated
+returns an ID that is specific to the process retrieving it, which must then be
+attached to be used by the process. From there, the shared memory is free to be
+used.
+QSORT uses a single shared memory segment to hold the single array that must be
+sorted. This single shared memory segment is attached both to MAIN, which loads
+the data into the segment, and every instance of QSORT running in child
+processes. Each of these processes partitions a portion of the shared array
+and forks a child to partition a smaller part of the array. At the end, the
+elements of the shared memory segment have been rearranged to be sorted, and it
+is then read and printed out by MAIN, before being detached and removed.
+MERGE uses three shared memory segments. All three are allocated by MAIN, but
+only 2 are populated with elements from input arrays, while the third is left
+for MERGE to fill. Once MERGE attaches the shared memory segments to itself,
+it reads elements from the first two shared arrays, and then concurrently
+loads the elements from those two arrays into the third, in such a manner that
+all elements are fully sorted at the end. MAIN then reads the final output
+array, and detaches and removes all three arrays.
+
+4. Are there potential race conditions in your program and in the program
+specification?
+My program does not allow for race conditions in its current form. As mentioned
+in the answer to question 2, while both MERGE and QSORT generate two or more
+processes that manipulate a shared resource concurrently, each has its own
+properties that prevent race conditions.
+With QSORT, while the order in which the processes access the shared resourse
+does matter, no two processes will operate on the SAME SECTION of the shared
+memory segment concurrently. When a child process is created to partition a
+portion of the shared array, it only operates on a portion that is separated
+by its parent's partition from the portion being operated on by its sibling
+process. Further, any work that was to be done by the parent on the array
+portion must have already been completed by the time of the child process'
+creation. These together prevent a possible race condition.
+In MERGE, as alluded to in question 2, the order in which the child processes
+operate on the shared array does not matter, which is the fourth necessary
+condition of a race condition. Each process corresponds to 1 element from an
+input array (which is only read and never altered, thus exempting it from race
+conditions), and that element can only be placed in a single, unique location
+within the shared memory. Whether it is the first or last element to be placed,
+no other process will interact with that index, therefor preventing a race
+condition.
+These properties of the program are not workaround created by myself, but
+necessary conditions intrinsic to the problem description. In order for QSORT
+to work as it does, the array must be partitioned before any child process
+is spawned to work on its section. The nature of MERGE algorithmically
+determines the position of each element in the output array, and the
+specification to use a separate process for each and every element of the input
+arrays prevents any processes from overlapping and interacting with the same
+index. Even if the program had been implemented with 1 shared memory segment
+rather than 3, race conditions would still not be possible given these
+constraints.
+
+5. How do you construct an argument list that is passed from program MAIN to
+program QSORT?
+In order to construct an argument list for QSORT, the program's recursive
+nature must be taken into account. This argument list must both work when
+being passed for the first time from MAIN to QSORT, and on the nth time being
+passed from QSORT to itself through a child process. Thus, seemingly obvious
+arguments must be included. For instance, the left- and right-most indices
+need to be included ALONG with the size of the shared memory array. While it is
+possible to determine the left and right indices initially with the input size,
+these indicies will be necessary on recursive calls. Further, the key used to
+get and attach the shared memory segment must be passed in to allow access to
+shared resources. All of these elements must be placed into character arrays,
+which can can then be placed together into a 2D character array, along with a
+string containing the name of the program, and the null character at the end to
+create a parseable input sequence for execvp.
+
+6. How do you construct an argument list that is passed from program MAIN to
+program MERGE?
+In order to construct an argument list for MERGE, one must consider what
+information is necessary for MERGE to operate. It will obviously require the
+keys and sizes of any shared memory segments to be passed in. Beyond that,
+really no other information is needed. In fact, the size of the third memory
+segment can even be omitted, seeing as it is just derived from the size of the
+two input arrays. (Note, this will be different if a single shared memory
+segment is used instead, where only 1 key to the shared memory segment will be
+needed, along with the size of the two subarrays within it). All of these
+elements must be placed into character arrays, which can can then be placed
+together into a 2D character array, along with a string containing the name of
+the program, and the null character at the end to create a parseable input
+sequence for execvp.
