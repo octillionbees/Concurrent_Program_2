@@ -28,8 +28,7 @@ int main(int argc, char* argv[]) {
     int k = atoi(argv[3]);
     int key = atoi(argv[4]);
 
-    sprintf(buf, "   ### Q-PROC(%d): entering with a[%d...%d]\n", pid, left, right);
-    write(1, buf, strlen(buf));
+    sprintf(buf, "   ### Q-PROC(%d): entering with a[%d...%d]\n       ", pid, left, right);
 
     if (left < right) {
         //attach shared memory
@@ -37,7 +36,6 @@ int main(int argc, char* argv[]) {
         int* a = (int*) shmat(shm_id, NULL, 0); //attach shared memory to pointer a
 
 
-        sprintf(buf, "       ");
         int j = strlen(buf);
         for (int i = left; i <= right; i++) {
             sprintf(&buf[j], "%d ", a[i]);
@@ -112,10 +110,8 @@ int main(int argc, char* argv[]) {
         waitpid(pidChild2, wStatus, 0);
 
 
-        sprintf(buf, "   ### Q-PROC(%d): section a[%d...%d] sorted\n", pid, left, right);
-        write(1, buf, strlen(buf));
+        sprintf(buf, "   ### Q-PROC(%d): section a[%d...%d] sorted\n       ", pid, left, right);
 
-        sprintf(buf, "       ");
         j = strlen(buf);
         for (int i = left; i <= right; i++) {
             sprintf(&buf[j], "%d ", a[i]);

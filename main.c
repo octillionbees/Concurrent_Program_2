@@ -46,10 +46,9 @@ int main(int argc, char* argv[]) {
     }
 
     sprintf(buf, "Input array for qsort has %d elements:\n", k);
-    write(1, buf, strlen(buf));
 
-    sprintf(buf, "    ");
     int j = strlen(buf);
+    sprintf(&buf[j], "    ");
     for (int i= 0; i < k; i++) {
         sprintf(&buf[j], "%d ", a[i]);
         j = strlen(buf);
@@ -75,10 +74,9 @@ int main(int argc, char* argv[]) {
     }
 
     sprintf(buf, "Input array x[] for merge has %d elements:\n", m);
-    write(1, buf, strlen(buf));
 
-    sprintf(buf, "    ");
     j = strlen(buf);
+    sprintf(&buf[j], "    ");
     for (int i = 0; i < m; i++) {
         sprintf(&buf[j],"%d ", x[i]);
         j = strlen(buf);
@@ -105,10 +103,9 @@ int main(int argc, char* argv[]) {
     }
 
     sprintf(buf, "Input array y[] for merge has %d elements:\n", n);
-    write(1, buf, strlen(buf));
 
-    sprintf(buf, "    ");
     j = strlen(buf);
+    sprintf(&buf[j], "    ");
     for (int i = 0; i < n; i++) {
         sprintf(&buf[j], "%d ", y[i]);
         j = strlen(buf);
@@ -120,10 +117,17 @@ int main(int argc, char* argv[]) {
     //Last Shared Memory needed
     key_t mergeKey = ftok("./", 'e');
     sprintf(buf, "*** MAIN: third merge shared memory key = %d\n", mergeKey);
+    write(1, buf, strlen(buf));
+    int merge_shm_id = shmget(mergeKey, sizeof(int) * (n + m), IPC_CREAT | 0666);
+    sprintf(buf, "*** MAIN: third merge shared memory created\n");
+    write(1, buf, strlen(buf));
 
+    //Don't attach, because nothing needs to be loaded into the memory segment by main.
 
     //execvp qsort
 
+    sprintf(buf, "*** MAIN: about to spawn the process for qsort\n");
+    write(1, buf, strlen(buf));
     pid_t qChild = fork();
     if (qChild < 0) {
         perror("fork failed!\n");
@@ -150,6 +154,14 @@ int main(int argc, char* argv[]) {
     }
 
     waitpid(qChild, status, 0);
+    sprintf(buf, "*** MAIN: sorted array by qsort:\n    ");
+    j = strlen(buf);
+    for (int i = 0; i < k; i++) {
+        sprintf(&buf[j], " %d", a[i]);
+        j = strlen(buf);
+    }
+    sprintf(&buf[j], "\n");
+    write(1, buf, strlen(buf));
 
     //Cleanup Time!
     //detach and remove shared memory
@@ -192,5 +204,12 @@ int main(int argc, char* argv[]) {
     sprintf(buf, "*** MAIN: second merge shared memory successfully removed\n");
     write(1, buf, strlen(buf));
 
+    if (shmctl(merge_shm_id, IPC_RMID, NULL) == -1) {
+        perror("Unable to remove third merge shared memory");
+        exit(1);
+    }
+
+    sprintf(buf, "*** MAIN: third merge shared memory successfully removed\n");
+    write(1, buf, strlen(buf));
     return 0;
 }
